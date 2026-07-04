@@ -1027,7 +1027,8 @@ async function handleNexusSelect(interaction: StringSelectMenuInteraction) {
         .setTitle("🪪 CITIZEN IDENTITY RECORD: MISSING")
         .setDescription(
           "No local identity passport exists in our centralized mainframe registry.\n\nPlease initialize your citizen record card to gain state privileges.",
-        );
+        )
+        .setThumbnail("https://i.imgur.com/M6X8g8B.png");
       const registerBtn = new ButtonBuilder()
         .setCustomId("btn_open_register_modal")
         .setLabel("Register New Identity")
@@ -1048,6 +1049,7 @@ async function handleNexusSelect(interaction: StringSelectMenuInteraction) {
           { name: "🆔 Passport Serial", value: `\`#${profile.passportId}\``, inline: true },
           { name: "🛡️ Record Security", value: "`AUTHORIZED LICENSE ✅`", inline: true },
         )
+        .setImage("https://i.imgur.com/M6X8g8B.png")
         .setFooter({ text: "Verified by State Mainframe Database" });
       await interaction.update({ embeds: [passportEmbed], components: [selectRow] });
     }
@@ -1063,7 +1065,8 @@ async function handleNexusSelect(interaction: StringSelectMenuInteraction) {
         { name: "⚡ Copper Ore", value: `\`${inv.copper} units\``, inline: true },
         { name: "🪵 Raw Wood", value: `\`${inv.wood} units\``, inline: true },
         { name: "📦 Unmanufactured Goods", value: `\`${inv.rawGoods} units\``, inline: true },
-      );
+      )
+      .setImage("https://i.imgur.com/8Qp2F6K.png");
     const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId("btn_gather_iron").setLabel("Mine Iron").setStyle(ButtonStyle.Secondary).setEmoji("🪨"),
       new ButtonBuilder().setCustomId("btn_gather_copper").setLabel("Mine Copper").setStyle(ButtonStyle.Secondary).setEmoji("⚡"),
@@ -1089,7 +1092,8 @@ async function handleNexusSelect(interaction: StringSelectMenuInteraction) {
           name: "⚠️ Security Confirmation",
           value: "Click the verification button below to spin up the magnetic core and execute item decomposition.",
         },
-      );
+      )
+      .setImage("https://i.imgur.com/8Qp2F6K.png");
     const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId("btn_exec_deconstruction").setLabel("Execute Deconstruction").setStyle(ButtonStyle.Danger).setEmoji("🔥"),
     );
@@ -1112,7 +1116,8 @@ async function handleNexusSelect(interaction: StringSelectMenuInteraction) {
           name: "⚠️ Assembly Safety Protocol",
           value: "High magnetic resonance will generate strong heat fields. Verify all components are locked and press the forge button.",
         },
-      );
+      )
+      .setImage("https://i.imgur.com/G566Z9u.png");
     const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId("btn_exec_weapon_forge").setLabel("Forge Tactical Pistol").setStyle(ButtonStyle.Success).setEmoji("🔫"),
     );
@@ -1127,7 +1132,9 @@ async function handleNexusSelect(interaction: StringSelectMenuInteraction) {
       .addFields(
         { name: "💵 Physical Wallet Cash", value: `\`$${wallet.cash}\``, inline: true },
         { name: "🏦 Bank Account Balance", value: `\`$${wallet.bank}\``, inline: true },
-      );
+      )
+      .setThumbnail("https://i.imgur.com/YwN9f1Z.png")
+      .setImage("https://i.imgur.com/wVjJb9p.png");
     const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId("btn_phone_deposit").setLabel("Deposit $250").setStyle(ButtonStyle.Primary).setEmoji("📥"),
       new ButtonBuilder().setCustomId("btn_phone_withdraw").setLabel("Withdraw $250").setStyle(ButtonStyle.Primary).setEmoji("📤"),
@@ -1361,7 +1368,8 @@ async function handleNexusModal(interaction: ModalSubmitInteraction): Promise<bo
         { name: "💼 Profession", value: `\`${job}\``, inline: true },
         { name: "🆔 Passport Serial", value: `\`#${passportId}\``, inline: true },
         { name: "🛡️ Record Security", value: "`AUTHORIZED LICENSE ✅`", inline: true },
-      );
+      )
+      .setImage("https://i.imgur.com/M6X8g8B.png");
 
     try {
       await interaction.message?.edit({ embeds: [refreshedPassportEmbed], components: [selectRow] });
