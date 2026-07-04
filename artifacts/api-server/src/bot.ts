@@ -112,6 +112,7 @@ setInterval(() => {
 const commands = [
   new SlashCommandBuilder().setName("sb").setDescription("🎛️ قائمة البوت"),
   new SlashCommandBuilder().setName("system").setDescription("⚙️ Open the central roleplay system (Identity, Phone, Inventory, Bank, Weapon Crafting)"),
+  new SlashCommandBuilder().setName("nexus").setDescription("⚡ Launches the central Nexus system dashboard"),
 ].map((c) => c.toJSON());
 
 // ──────────────────────────────────────────────────
@@ -913,6 +914,496 @@ client.on("messageCreate", async (message) => {
 });
 
 // ──────────────────────────────────────────────────
+// Nexus Integrated Roleplay System (/nexus)
+// ──────────────────────────────────────────────────
+interface NexusProfile {
+  name: string;
+  age: number;
+  nationality: string;
+  job: string;
+  passportId: string;
+}
+interface NexusInventory {
+  iron: number;
+  copper: number;
+  wood: number;
+  gunpowder: number;
+  rawGoods: number;
+  rubber: number;
+  pistol: number;
+}
+interface NexusWallet {
+  cash: number;
+  bank: number;
+}
+
+const nexusProfiles = new Map<string, NexusProfile>();
+const nexusInventories = new Map<string, NexusInventory>();
+const nexusWallets = new Map<string, NexusWallet>();
+
+function ensureNexusUser(userId: string) {
+  if (!nexusInventories.has(userId)) {
+    nexusInventories.set(userId, { iron: 15, copper: 10, wood: 8, gunpowder: 5, rawGoods: 6, rubber: 0, pistol: 0 });
+  }
+  if (!nexusWallets.has(userId)) {
+    nexusWallets.set(userId, { cash: 1000, bank: 5000 });
+  }
+}
+
+function buildNexusMenu() {
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("nexus_select_menu")
+    .setPlaceholder("⚡ Select system interface...")
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Passport Control")
+        .setDescription("View or register your official citizen identity card")
+        .setValue("sys_passport")
+        .setEmoji("🪪"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Harvester Node")
+        .setDescription("Gather raw materials and unmanufactured goods")
+        .setValue("sys_gather")
+        .setEmoji("⛏️"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Thermal Deconstructor v2.4")
+        .setDescription("Convert unmanufactured assets into chemical resources")
+        .setValue("sys_deconstructor")
+        .setEmoji("🔥"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Weapon Fabrication Bench")
+        .setDescription("Assemble tactical arms utilizing raw components")
+        .setValue("sys_weapon_forge")
+        .setEmoji("🛠️"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("iFruit Smart Link")
+        .setDescription("Access mobile applications, banking, and bank transfers")
+        .setValue("sys_phone")
+        .setEmoji("📱"),
+    );
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu);
+}
+
+async function handleNexusCommand(interaction: ChatInputCommandInteraction) {
+  ensureNexusUser(interaction.user.id);
+  const selectRow = buildNexusMenu();
+
+  const welcomeEmbed = new EmbedBuilder()
+    .setColor(0x0f172a)
+    .setTitle("⚙️ NEXUS INTEGRATED OPERATING SYSTEM")
+    .setDescription(
+      "Welcome to your central command nexus. Use the drop-down matrix below to navigate through security systems, material conversion engines, and personal applications.\n\n🔒 **Secure connection established.** Select a system to deploy.",
+    )
+    .setTimestamp()
+    .setFooter({ text: "Nexus OS v4.2 • Client Access Authorized", iconURL: interaction.user.displayAvatarURL() });
+
+  await interaction.reply({ embeds: [welcomeEmbed], components: [selectRow] });
+}
+
+async function handleNexusSelect(interaction: StringSelectMenuInteraction) {
+  const userId = interaction.user.id;
+  ensureNexusUser(userId);
+  const selectRow = buildNexusMenu();
+  const choice = interaction.values[0];
+  const profile = nexusProfiles.get(userId);
+  const inv = nexusInventories.get(userId)!;
+  const wallet = nexusWallets.get(userId)!;
+
+  if (!profile && choice !== "sys_passport") {
+    const lockEmbed = new EmbedBuilder()
+      .setColor(0xef4444)
+      .setTitle("⚠️ SYSTEM ACCESS DENIED")
+      .setDescription(
+        "No active Citizen Record was detected under this identity. You must register your ID Card in **Passport Control** first before using the Nexus System.",
+      );
+    await interaction.reply({ embeds: [lockEmbed], ephemeral: true });
+    return;
+  }
+
+  if (choice === "sys_passport") {
+    if (!profile) {
+      const noPassportEmbed = new EmbedBuilder()
+        .setColor(0xe11d48)
+        .setTitle("🪪 CITIZEN IDENTITY RECORD: MISSING")
+        .setDescription(
+          "No local identity passport exists in our centralized mainframe registry.\n\nPlease initialize your citizen record card to gain state privileges.",
+        );
+      const registerBtn = new ButtonBuilder()
+        .setCustomId("btn_open_register_modal")
+        .setLabel("Register New Identity")
+        .setEmoji("📝")
+        .setStyle(ButtonStyle.Primary);
+      const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(registerBtn);
+      await interaction.update({ embeds: [noPassportEmbed], components: [selectRow, btnRow] });
+    } else {
+      const passportEmbed = new EmbedBuilder()
+        .setColor(0x3b82f6)
+        .setTitle("🪪 CITIZEN PASSPORT CARD")
+        .setThumbnail(interaction.user.displayAvatarURL())
+        .addFields(
+          { name: "👤 Full Name", value: `\`${profile.name}\``, inline: true },
+          { name: "🎂 Age", value: `\`${profile.age} Years Old\``, inline: true },
+          { name: "🌍 Nationality", value: `\`${profile.nationality}\``, inline: true },
+          { name: "💼 Profession", value: `\`${profile.job}\``, inline: true },
+          { name: "🆔 Passport Serial", value: `\`#${profile.passportId}\``, inline: true },
+          { name: "🛡️ Record Security", value: "`AUTHORIZED LICENSE ✅`", inline: true },
+        )
+        .setFooter({ text: "Verified by State Mainframe Database" });
+      await interaction.update({ embeds: [passportEmbed], components: [selectRow] });
+    }
+  } else if (choice === "sys_gather") {
+    const gatherEmbed = new EmbedBuilder()
+      .setColor(0xd97706)
+      .setTitle("⛏️ RAW MATERIAL HARVESTER NODE")
+      .setDescription(
+        "Activate drone extractors to harvest raw resources. These materials are essential for weapon forging and thermal recycling.",
+      )
+      .addFields(
+        { name: "🪨 Iron Ore", value: `\`${inv.iron} units\``, inline: true },
+        { name: "⚡ Copper Ore", value: `\`${inv.copper} units\``, inline: true },
+        { name: "🪵 Raw Wood", value: `\`${inv.wood} units\``, inline: true },
+        { name: "📦 Unmanufactured Goods", value: `\`${inv.rawGoods} units\``, inline: true },
+      );
+    const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("btn_gather_iron").setLabel("Mine Iron").setStyle(ButtonStyle.Secondary).setEmoji("🪨"),
+      new ButtonBuilder().setCustomId("btn_gather_copper").setLabel("Mine Copper").setStyle(ButtonStyle.Secondary).setEmoji("⚡"),
+      new ButtonBuilder().setCustomId("btn_gather_wood").setLabel("Chop Wood").setStyle(ButtonStyle.Secondary).setEmoji("🪵"),
+      new ButtonBuilder().setCustomId("btn_gather_goods").setLabel("Scavenge Cargo").setStyle(ButtonStyle.Secondary).setEmoji("📦"),
+    );
+    await interaction.update({ embeds: [gatherEmbed], components: [selectRow, btnRow] });
+  } else if (choice === "sys_deconstructor") {
+    const deconstructEmbed = new EmbedBuilder()
+      .setColor(0x06b6d4)
+      .setTitle("🔥 Thermal Deconstructor")
+      .setDescription("**Thermal Deconstructor v2.4**\nDeconstructs unmanufactured trade goods into highly purified raw rubber units.")
+      .addFields(
+        {
+          name: "📊 Machine Settings & Status",
+          value: "```\n⚙️ Engine Motor Status  : READY\n🔥 Active Chamber Temp   : 420 °C\n⚡ Energy Usage Rate     : 65 kW/h\n🧬 Compound Core Purity  : 99.8%\n```",
+        },
+        {
+          name: "📋 Process Summary",
+          value: `🔴 **INPUT:** \`x1 Unmanufactured Goods\` (Available: ${inv.rawGoods})\n🟢 **EXPECTED OUTPUT:** \`+1 Raw Rubber\``,
+        },
+        {
+          name: "⚠️ Security Confirmation",
+          value: "Click the verification button below to spin up the magnetic core and execute item decomposition.",
+        },
+      );
+    const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("btn_exec_deconstruction").setLabel("Execute Deconstruction").setStyle(ButtonStyle.Danger).setEmoji("🔥"),
+    );
+    await interaction.update({ embeds: [deconstructEmbed], components: [selectRow, btnRow] });
+  } else if (choice === "sys_weapon_forge") {
+    const forgeEmbed = new EmbedBuilder()
+      .setColor(0x6b7280)
+      .setTitle("🛠️ Tactical Weapon Fabricator")
+      .setDescription("**Metal Fusion Forge v4.2**\nSynthesizes components and alloys into heavy tactical firearm units.")
+      .addFields(
+        {
+          name: "📊 Assembly Forge Settings & Status",
+          value: "```\n⚙️ Forge Mechanical Piston : OPTIMIZED\n🔥 Plasma Melting Core Temp  : 1,450 °C\n⚡ Induction Energy Flow     : 120 kW/h\n🧬 Structured Alloy Integrity: 99.5%\n```",
+        },
+        {
+          name: "📋 Synthesis Blueprint Summary",
+          value: `🔴 **INPUTS:**\n- \`x10 Iron Ore\` (Available: ${inv.iron})\n- \`x5 Copper Ore\` (Available: ${inv.copper})\n- \`x3 Gunpowder\` (Available: ${inv.gunpowder})\n\n🟢 **EXPECTED PRODUCT:**\n- \`+1 Tactical 9mm Handgun\` (Total Crafted: ${inv.pistol})`,
+        },
+        {
+          name: "⚠️ Assembly Safety Protocol",
+          value: "High magnetic resonance will generate strong heat fields. Verify all components are locked and press the forge button.",
+        },
+      );
+    const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("btn_exec_weapon_forge").setLabel("Forge Tactical Pistol").setStyle(ButtonStyle.Success).setEmoji("🔫"),
+    );
+    await interaction.update({ embeds: [forgeEmbed], components: [selectRow, btnRow] });
+  } else if (choice === "sys_phone") {
+    const phoneEmbed = new EmbedBuilder()
+      .setColor(0x10b981)
+      .setTitle("📱 iFruit Mobile Link - Maze Bank Client")
+      .setDescription(
+        "📶 **Signal:** Secure 5G Network\n🔋 **Power:** 97% Connected\n\nAccess Maze Bank transfers, deposit local cash safely, or transfer capital electronically to another citizen.",
+      )
+      .addFields(
+        { name: "💵 Physical Wallet Cash", value: `\`$${wallet.cash}\``, inline: true },
+        { name: "🏦 Bank Account Balance", value: `\`$${wallet.bank}\``, inline: true },
+      );
+    const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("btn_phone_deposit").setLabel("Deposit $250").setStyle(ButtonStyle.Primary).setEmoji("📥"),
+      new ButtonBuilder().setCustomId("btn_phone_withdraw").setLabel("Withdraw $250").setStyle(ButtonStyle.Primary).setEmoji("📤"),
+      new ButtonBuilder().setCustomId("btn_phone_transfer").setLabel("Wire Transfer Capital").setStyle(ButtonStyle.Secondary).setEmoji("💸"),
+    );
+    await interaction.update({ embeds: [phoneEmbed], components: [selectRow, btnRow] });
+  }
+}
+
+async function handleNexusButton(interaction: ButtonInteraction) {
+  const userId = interaction.user.id;
+  ensureNexusUser(userId);
+  const inv = nexusInventories.get(userId)!;
+  const wallet = nexusWallets.get(userId)!;
+  const id = interaction.customId;
+
+  if (id === "btn_open_register_modal") {
+    const modal = new ModalBuilder().setCustomId("passport_registration_modal").setTitle("Mainframe Passport System");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("input_passport_name")
+          .setLabel("What is your full character name?")
+          .setPlaceholder("Enter name (e.g. Marcus Miller)")
+          .setStyle(TextInputStyle.Short)
+          .setMaxLength(50)
+          .setRequired(true),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("input_passport_age")
+          .setLabel("Enter age:")
+          .setPlaceholder("Must be a number (e.g. 24)")
+          .setStyle(TextInputStyle.Short)
+          .setMaxLength(3)
+          .setRequired(true),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("input_passport_nationality")
+          .setLabel("Where is your home country?")
+          .setPlaceholder("e.g. Los Santos, Liberty City")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("input_passport_job")
+          .setLabel("Enter active profession:")
+          .setPlaceholder("e.g. Weapon Manufacturer, Miner, Banker")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true),
+      ),
+    );
+    await interaction.showModal(modal);
+    return;
+  }
+
+  if (id.startsWith("btn_gather_")) {
+    let resultMessage = "";
+    const gain = Math.floor(Math.random() * 4) + 3;
+    if (id === "btn_gather_iron") {
+      inv.iron += gain;
+      resultMessage = `⛏️ Successfully extracted \`+${gain} Iron Ore\`!`;
+    } else if (id === "btn_gather_copper") {
+      inv.copper += gain;
+      resultMessage = `⚡ Successfully extracted \`+${gain} Copper Ore\`!`;
+    } else if (id === "btn_gather_wood") {
+      inv.wood += gain;
+      resultMessage = `🪵 Successfully chopped down \`+${gain} Wood\` logs!`;
+    } else if (id === "btn_gather_goods") {
+      const cargoGain = Math.floor(Math.random() * 2) + 1;
+      inv.rawGoods += cargoGain;
+      resultMessage = `📦 Salvaged \`+${cargoGain} Unmanufactured Cargo Goods\`!`;
+    }
+    const refreshed = EmbedBuilder.from(interaction.message.embeds[0]!)
+      .setDescription(`${resultMessage}\n\nActivate extraction systems again to harvest more components.`)
+      .setFields(
+        { name: "🪨 Iron Ore", value: `\`${inv.iron} units\``, inline: true },
+        { name: "⚡ Copper Ore", value: `\`${inv.copper} units\``, inline: true },
+        { name: "🪵 Raw Wood", value: `\`${inv.wood} units\``, inline: true },
+        { name: "📦 Unmanufactured Goods", value: `\`${inv.rawGoods} units\``, inline: true },
+      );
+    await interaction.update({ embeds: [refreshed] });
+    return;
+  }
+
+  if (id === "btn_exec_deconstruction") {
+    if (inv.rawGoods < 1) {
+      await interaction.reply({
+        content: "❌ **Processing Error:** Insufficient cargo goods! Harvest or purchase more `Unmanufactured Goods` to deconstruct.",
+        ephemeral: true,
+      });
+      return;
+    }
+    inv.rawGoods -= 1;
+    inv.rubber += 1;
+    const updated = EmbedBuilder.from(interaction.message.embeds[0]!).setFields(
+      {
+        name: "📊 Machine Settings & Status",
+        value: "```\n⚙️ Engine Motor Status  : CYCLING COMPLETE\n🔥 Active Chamber Temp   : 420 °C (Steady)\n⚡ Energy Usage Rate     : 65 kW/h\n🧬 Compound Core Purity  : 99.8%\n```",
+      },
+      {
+        name: "📋 Process Summary",
+        value: `🟢 **DECONSTRUCTION CONVERTED!**\nConsumed \`1x Unmanufactured Goods\` -> Created \`+1 Raw Rubber\`.\n\n🎒 **Storage:** Rubber: \`${inv.rubber}\` | Unmanufactured Cargo: \`${inv.rawGoods}\``,
+      },
+      { name: "⚠️ Security Confirmation", value: "Core cycle complete. Machine returning to safe idling mode." },
+    );
+    await interaction.update({ embeds: [updated] });
+    return;
+  }
+
+  if (id === "btn_exec_weapon_forge") {
+    if (inv.iron < 10 || inv.copper < 5 || inv.gunpowder < 3) {
+      await interaction.reply({
+        content: "❌ **Assembly Failed:** Insufficient resources!\nMake sure you possess at least `10 Iron`, `5 Copper`, and `3 Gunpowder`.",
+        ephemeral: true,
+      });
+      return;
+    }
+    inv.iron -= 10;
+    inv.copper -= 5;
+    inv.gunpowder -= 3;
+    inv.pistol += 1;
+    const updated = EmbedBuilder.from(interaction.message.embeds[0]!).setFields(
+      {
+        name: "📊 Assembly Forge Settings & Status",
+        value: "```\n⚙️ Forge Mechanical Piston : INERT\n🔥 Plasma Melting Core Temp  : 200 °C (Cooling Down)\n⚡ Induction Energy Flow     : 0 kW/h\n🧬 Structured Alloy Integrity: 99.5%\n```",
+      },
+      {
+        name: "📋 Synthesis Blueprint Summary",
+        value: `🟢 **FABRICATION COMPLETED SUCCESSFULLY!**\nAssembled: \`1x Tactical 9mm Handgun\` 🔫\n\n🎒 **Storage:**\n- 🔫 Tactical Handguns: \`${inv.pistol}\`\n- 🪨 Iron: \`${inv.iron}\` | ⚡ Copper: \`${inv.copper}\` | 🧨 Gunpowder: \`${inv.gunpowder}\``,
+      },
+      { name: "⚠️ Assembly Safety Protocol", value: "Weapons locker safely locked. Ready for next project schematic." },
+    );
+    await interaction.update({ embeds: [updated] });
+    return;
+  }
+
+  if (id === "btn_phone_deposit") {
+    if (wallet.cash < 250) {
+      await interaction.reply({ content: "❌ You do not have $250 cash in your wallet!", ephemeral: true });
+      return;
+    }
+    wallet.cash -= 250;
+    wallet.bank += 250;
+    const updated = EmbedBuilder.from(interaction.message.embeds[0]!)
+      .setDescription("✅ Successfully deposited `$250` into Maze Bank Account!")
+      .setFields(
+        { name: "💵 Physical Wallet Cash", value: `\`$${wallet.cash}\``, inline: true },
+        { name: "🏦 Bank Account Balance", value: `\`$${wallet.bank}\``, inline: true },
+      );
+    await interaction.update({ embeds: [updated] });
+    return;
+  }
+
+  if (id === "btn_phone_withdraw") {
+    if (wallet.bank < 250) {
+      await interaction.reply({ content: "❌ Insufficient bank funds to withdraw $250!", ephemeral: true });
+      return;
+    }
+    wallet.bank -= 250;
+    wallet.cash += 250;
+    const updated = EmbedBuilder.from(interaction.message.embeds[0]!)
+      .setDescription("✅ Successfully withdrew `$250` into your physical wallet!")
+      .setFields(
+        { name: "💵 Physical Wallet Cash", value: `\`$${wallet.cash}\``, inline: true },
+        { name: "🏦 Bank Account Balance", value: `\`$${wallet.bank}\``, inline: true },
+      );
+    await interaction.update({ embeds: [updated] });
+    return;
+  }
+
+  if (id === "btn_phone_transfer") {
+    const modal = new ModalBuilder().setCustomId("phone_transfer_bank_modal").setTitle("Secure Wire Bank Transfer");
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("input_target_id")
+          .setLabel("Receiver's User Discord ID")
+          .setPlaceholder("e.g. 488349202391029310")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("input_transfer_amount")
+          .setLabel("Transfer Capital Amount ($)")
+          .setPlaceholder("Enter transfer amount (e.g. 500)")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true),
+      ),
+    );
+    await interaction.showModal(modal);
+    return;
+  }
+}
+
+async function handleNexusModal(interaction: ModalSubmitInteraction): Promise<boolean> {
+  const userId = interaction.user.id;
+  const selectRow = buildNexusMenu();
+
+  if (interaction.customId === "passport_registration_modal") {
+    const name = interaction.fields.getTextInputValue("input_passport_name");
+    const age = parseInt(interaction.fields.getTextInputValue("input_passport_age"), 10);
+    const nationality = interaction.fields.getTextInputValue("input_passport_nationality");
+    const job = interaction.fields.getTextInputValue("input_passport_job");
+
+    if (isNaN(age) || age <= 0) {
+      await interaction.reply({ content: "❌ **Registration Failure:** Age input must be a valid positive integer value.", ephemeral: true });
+      return true;
+    }
+
+    const passportId = `NX-${Math.floor(Math.random() * 900000 + 100000)}`;
+    nexusProfiles.set(userId, { name, age, nationality, job, passportId });
+
+    const successEmbed = new EmbedBuilder()
+      .setColor(0x10b981)
+      .setTitle("🎉 REGISTERED SUCCESSFULLY")
+      .setDescription(`**Passport Issued:** Identity created for **${name}**.\nYour account has been validated and system locks are now open!`);
+    await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+
+    const refreshedPassportEmbed = new EmbedBuilder()
+      .setColor(0x3b82f6)
+      .setTitle("🪪 CITIZEN PASSPORT CARD")
+      .setThumbnail(interaction.user.displayAvatarURL())
+      .addFields(
+        { name: "👤 Full Name", value: `\`${name}\``, inline: true },
+        { name: "🎂 Age", value: `\`${age} Years Old\``, inline: true },
+        { name: "🌍 Nationality", value: `\`${nationality}\``, inline: true },
+        { name: "💼 Profession", value: `\`${job}\``, inline: true },
+        { name: "🆔 Passport Serial", value: `\`#${passportId}\``, inline: true },
+        { name: "🛡️ Record Security", value: "`AUTHORIZED LICENSE ✅`", inline: true },
+      );
+
+    try {
+      await interaction.message?.edit({ embeds: [refreshedPassportEmbed], components: [selectRow] });
+    } catch { /* original message may be gone */ }
+    return true;
+  }
+
+  if (interaction.customId === "phone_transfer_bank_modal") {
+    const targetId = interaction.fields.getTextInputValue("input_target_id").trim();
+    const amount = parseInt(interaction.fields.getTextInputValue("input_transfer_amount"), 10);
+
+    if (isNaN(amount) || amount <= 0) {
+      await interaction.reply({ content: "❌ **Transfer Error:** Invalid transfer amount input.", ephemeral: true });
+      return true;
+    }
+
+    ensureNexusUser(userId);
+    const senderWallet = nexusWallets.get(userId)!;
+    if (senderWallet.bank < amount) {
+      await interaction.reply({ content: "❌ **Insufficient Funds:** Transfer amount is higher than bank savings.", ephemeral: true });
+      return true;
+    }
+
+    ensureNexusUser(targetId);
+    const receiverWallet = nexusWallets.get(targetId)!;
+    senderWallet.bank -= amount;
+    receiverWallet.bank += amount;
+
+    const successEmbed = new EmbedBuilder()
+      .setColor(0x10b981)
+      .setTitle("💸 Secure Maze Bank Wire Transfer Complete")
+      .setDescription(
+        `🏦 Successfully transferred \`$${amount}\` to target user ID \`${targetId}\`!\n\n💵 Remaining Wallet Cash: \`$${senderWallet.cash}\`\n🏦 Remaining Bank Savings: \`$${senderWallet.bank}\``,
+      );
+    await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+    return true;
+  }
+
+  return false;
+}
+
+// ──────────────────────────────────────────────────
 // الأحداث
 // ──────────────────────────────────────────────────
 client.once("clientReady", async (rc) => {
@@ -932,13 +1423,31 @@ client.on("interactionCreate", async (interaction) => {
       await handleSbCommand(interaction);
     } else if (interaction.isChatInputCommand() && interaction.commandName === "system") {
       await handleSystemCommand(interaction);
+    } else if (interaction.isChatInputCommand() && interaction.commandName === "nexus") {
+      await handleNexusCommand(interaction);
     } else if (interaction.isStringSelectMenu()) {
       if (interaction.customId === "sb_menu") await handleMainMenu(interaction);
       else if (interaction.customId === "gta_menu") await handleGtaMenu(interaction);
+      else if (interaction.customId === "nexus_select_menu") await handleNexusSelect(interaction);
     } else if (interaction.isButton() && interaction.customId.startsWith("gta_")) {
       await handleGtaButton(interaction);
+    } else if (
+      interaction.isButton() &&
+      (interaction.customId.startsWith("btn_gather_") ||
+        interaction.customId === "btn_open_register_modal" ||
+        interaction.customId === "btn_exec_deconstruction" ||
+        interaction.customId === "btn_exec_weapon_forge" ||
+        interaction.customId === "btn_phone_deposit" ||
+        interaction.customId === "btn_phone_withdraw" ||
+        interaction.customId === "btn_phone_transfer")
+    ) {
+      await handleNexusButton(interaction);
     } else if (interaction.isModalSubmit()) {
-      await handleModalSubmit(interaction);
+      if (interaction.customId === "passport_registration_modal" || interaction.customId === "phone_transfer_bank_modal") {
+        await handleNexusModal(interaction);
+      } else {
+        await handleModalSubmit(interaction);
+      }
     }
   } catch (err) {
     logger.error({ err }, "Error handling interaction");
