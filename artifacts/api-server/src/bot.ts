@@ -111,7 +111,146 @@ setInterval(() => {
 // ──────────────────────────────────────────────────
 const commands = [
   new SlashCommandBuilder().setName("sb").setDescription("🎛️ قائمة البوت"),
+  new SlashCommandBuilder().setName("system").setDescription("⚙️ Open the central roleplay system (Identity, Phone, Inventory, Bank, Weapon Crafting)"),
 ].map((c) => c.toJSON());
+
+// ──────────────────────────────────────────────────
+// Central System (/system) — Identity, Phone, Inventory, Bank, Weapon Crafting
+// ──────────────────────────────────────────────────
+function buildSystemMenu(disabled = false) {
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("main_system_menu")
+    .setPlaceholder(disabled ? "Session expired ❌" : "Select a system to view... 🛡️")
+    .setDisabled(disabled)
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel("ID Card & Identity")
+        .setDescription("View your personal info and licenses")
+        .setValue("identity_sys")
+        .setEmoji("🪪"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Mobile Phone")
+        .setDescription("Phone apps and messages")
+        .setValue("phone_sys")
+        .setEmoji("📱"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Inventory & Storage")
+        .setDescription("View your items and resources")
+        .setValue("inventory_sys")
+        .setEmoji("🎒"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Banking System")
+        .setDescription("Current balance, loans, and transfers")
+        .setValue("bank_sys")
+        .setEmoji("🏦"),
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Weapon Crafting Workshop")
+        .setDescription("Craft and upgrade weapons and ammo")
+        .setValue("weapon_craft")
+        .setEmoji("🛠️"),
+    );
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu);
+}
+
+function buildSystemPanel(section: string, user: { id: string; username: string; displayAvatarURL: () => string }) {
+  const embed = new EmbedBuilder().setTimestamp();
+
+  switch (section) {
+    case "identity_sys":
+      embed
+        .setColor(0x00aaff)
+        .setTitle("🪪 Digital ID Card")
+        .setThumbnail(user.displayAvatarURL())
+        .addFields(
+          { name: "👤 Full Name", value: `\`${user.username}\``, inline: true },
+          { name: "🆔 National ID", value: `\`#${user.id.slice(0, 6)}\``, inline: true },
+          { name: "🎂 Age", value: "`24 years`", inline: true },
+          { name: "🚗 Driver's License", value: "`Valid ✅`", inline: true },
+          { name: "💼 Occupation", value: "`Software Engineer 🛠️`", inline: true },
+        );
+      break;
+
+    case "phone_sys":
+      embed
+        .setColor(0x2ecc71)
+        .setTitle("📱 Smartphone — iFruit")
+        .setDescription("Status: **Connected 📡**\nBattery: **88% 🔋**")
+        .addFields(
+          { name: "💬 Messages", value: "`No new messages`" },
+          { name: "📸 Gallery", value: "`Your storage has 12 locked photos`" },
+          { name: "🚕 Ride App", value: "`[ Request a taxi now ]`" },
+        );
+      break;
+
+    case "inventory_sys":
+      embed
+        .setColor(0xe67e22)
+        .setTitle("🎒 Backpack & Belongings")
+        .setDescription("Carry capacity: `45kg / 100kg` 📦")
+        .addFields(
+          { name: "🍏 Food & Drinks", value: "`3x` Apple | `5x` Water Bottle" },
+          { name: "🔑 Tools & Keys", value: "`1x` Apartment Key #4 | `1x` Lockpick" },
+          { name: "🩹 First Aid", value: "`2x` Bandage | `1x` Painkiller" },
+        );
+      break;
+
+    case "bank_sys":
+      embed
+        .setColor(0xf1c40f)
+        .setTitle("🏦 Central Bank & Financial Services")
+        .addFields(
+          { name: "💳 Checking Account", value: "`$154,230`", inline: true },
+          { name: "💰 Cash on Hand", value: "`$4,500`", inline: true },
+          { name: "📉 Outstanding Loans", value: "`$0` (No debt)", inline: true },
+        );
+      break;
+
+    case "weapon_craft":
+      embed
+        .setColor(0x95a5a6)
+        .setTitle("🛠️ Weapon Crafting & Upgrade Bench")
+        .setDescription("Select a weapon to craft (make sure you have enough materials):")
+        .addFields(
+          { name: "🔫 9mm Pistol", value: "Requires: `10x Iron Scraps` | `2x Spring` ⚙️\n**Status:** Ready to craft" },
+          { name: "⚔️ Machete", value: "Requires: `4x Iron Scraps` | `1x Wooden Handle` 🪵\n**Status:** Ready to craft" },
+          { name: "🧨 Pistol Ammo (x30)", value: "Requires: `5x Gunpowder` | `3x Copper` 🪙\n**Status:** Insufficient materials ❌" },
+        );
+      break;
+  }
+
+  return embed;
+}
+
+async function handleSystemCommand(interaction: ChatInputCommandInteraction) {
+  const row = buildSystemMenu();
+
+  const welcomeEmbed = new EmbedBuilder()
+    .setColor(0x2b2d31)
+    .setTitle("⚙️ Central System")
+    .setDescription("Welcome to your control panel. Please choose a system from the dropdown menu below to get started.")
+    .setTimestamp()
+    .setFooter({ text: "Advanced Roleplay System", iconURL: interaction.user.displayAvatarURL() });
+
+  await interaction.reply({ embeds: [welcomeEmbed], components: [row] });
+
+  const filter = (i: { customId: string; user: { id: string } }) =>
+    i.customId === "main_system_menu" && i.user.id === interaction.user.id;
+
+  const collector = interaction.channel?.createMessageComponentCollector({
+    filter,
+    componentType: ComponentType.StringSelect,
+    time: 300_000,
+  });
+
+  collector?.on("collect", async (i) => {
+    const responseEmbed = buildSystemPanel(i.values[0]!, i.user);
+    await i.update({ embeds: [responseEmbed], components: [row] }).catch(() => {});
+  });
+
+  collector?.on("end", async () => {
+    await interaction.editReply({ components: [buildSystemMenu(true)] }).catch(() => {});
+  });
+}
 
 // ──────────────────────────────────────────────────
 // القائمة الرئيسية
@@ -791,6 +930,8 @@ client.on("interactionCreate", async (interaction) => {
   try {
     if (interaction.isChatInputCommand() && interaction.commandName === "sb") {
       await handleSbCommand(interaction);
+    } else if (interaction.isChatInputCommand() && interaction.commandName === "system") {
+      await handleSystemCommand(interaction);
     } else if (interaction.isStringSelectMenu()) {
       if (interaction.customId === "sb_menu") await handleMainMenu(interaction);
       else if (interaction.customId === "gta_menu") await handleGtaMenu(interaction);
